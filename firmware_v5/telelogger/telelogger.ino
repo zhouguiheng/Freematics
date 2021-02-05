@@ -698,41 +698,36 @@ void showStats()
 #endif
 }
 
-bool waitMotion(long timeout)
+bool motionDetected()
 {
-#if ENABLE_MEMS
-  unsigned long t = millis();
-  if (state.check(STATE_MEMS_READY)) {
-    do {
-      serverProcess(100);
-      // calculate relative movement
-      float motion = 0;
-      float acc[3];
-      if (!mems->read(acc)) continue;
-      if (accCount == 10) {
-        accCount = 0;
-        accSum[0] = 0;
-        accSum[1] = 0;
-        accSum[2] = 0;
-      }
-      accSum[0] += acc[0];
-      accSum[1] += acc[1];
-      accSum[2] += acc[2];
-      accCount++;
-      for (byte i = 0; i < 3; i++) {
-        float m = (acc[i] - accBias[i]);
-        motion += m * m;
-      }
-      // check movement
-      if (motion >= MOTION_THRESHOLD * MOTION_THRESHOLD) {
-        //lastMotionTime = millis();
-        return true;
-      }
-    } while ((long)(millis() - t) < timeout || timeout == -1);
+  if (!state.check(STATE_MEMS_READY)) {
     return false;
   }
-#endif
-  serverProcess(timeout);
+  // calculate relative movement
+  float motion = 0;
+  float acc[3];
+  if (!mems->read(acc)) {
+    return false;
+  }
+  if (accCount == 10) {
+    accCount = 0;
+    accSum[0] = 0;
+    accSum[1] = 0;
+    accSum[2] = 0;
+  }
+  accSum[0] += acc[0];
+  accSum[1] += acc[1];
+  accSum[2] += acc[2];
+  accCount++;
+  for (byte i = 0; i < 3; i++) {
+    float m = (acc[i] - accBias[i]);
+    motion += m * m;
+  }
+  // check movement
+  if (motion >= MOTION_THRESHOLD * MOTION_THRESHOLD) {
+    //lastMotionTime = millis();
+    return true;
+  }
   return false;
 }
 
@@ -1104,16 +1099,27 @@ void standby()
 #endif
   Serial.println("STANDBY");
   obd.enterLowPowerMode();
-#if ENABLE_MEMS
+#if WAKEUP_BY_MEMS
   calibrateMEMS();
-  waitMotion(-1);
-#elif ENABLE_OBD
-  do {
-    delay(5000);
-  } while (obd.getVoltage() < JUMPSTART_VOLTAGE);
-#else
-  delay(5000);
 #endif
+  do {
+#if ENABLE_MEMS
+#if WAKEUP_BY_MEMS
+    if (motionDetected()) {
+      break;
+    }
+#endif
+#endif
+#if ENABLE_OBD
+#if WAKEUP_BY_JUMPSTART
+    if (obd.getVoltage() >= JUMPSTART_VOLTAGE) {
+      break;
+    }
+#endif
+#endif
+    serverProcess(500);
+  } while (true);
+
   Serial.println("Wakeup");
 
 #if RESET_AFTER_WAKEUP

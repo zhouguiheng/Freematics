@@ -128,6 +128,9 @@
 #define MOTION_THRESHOLD 0.4f /* moving vehicle motion threshold in G */
 // engine jumpstart voltage
 #define JUMPSTART_VOLTAGE 14 /* V */
+// wake up by motion sensor (MEMS) or jumpstart voltage
+#define WAKEUP_BY_MEMS 1
+#define WAKEUP_BY_JUMPSTART 1
 
 /**************************************
 * Additional features
