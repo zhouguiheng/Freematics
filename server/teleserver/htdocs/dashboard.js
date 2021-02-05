@@ -15,6 +15,9 @@
 ******************************************************************************/
 
 onResize();
+window.addEventListener("orientationchange", function() {
+  onResize();
+}, false);
 
 $(function () {
     $(document).ready(function () {
